@@ -523,6 +523,7 @@ const fnStr = (f) => {
 		await new Promise((r) => setTimeout(r, 50));
 	}
 	const chunkGlobal = window.webpackChunkclient_web || window.rspackChunkclient_web;
+	if (!window.webpackChunkclient_web) window.webpackChunkclient_web = chunkGlobal;
 
 	// Force all webpack modules to load
 	const require = chunkGlobal.push([[Symbol()], {}, (re) => re]);
@@ -1197,7 +1198,9 @@ body[data-dragging-uri-type] .spicetify-sc-chevronBtn { pointer-events: none; }`
 		};
 	})();
 
-	const localeModule = modules.find((m) => m?.getTranslations);
+	const localeModule = modules.find(
+		(m) => typeof m?.getTranslations === "function" && typeof m?.get === "function" && typeof m?.getLocaleForURLPath === "function"
+	);
 	if (localeModule) {
 		const createUrlLocale = functionModules.find((m) => fnStr(m).includes("has") && fnStr(m).includes("baseName") && fnStr(m).includes("language"));
 		Spicetify.Locale = {
