@@ -74,19 +74,19 @@ function Get-Spicetify {
       $architecture = 'x32'
     }
     if ($v) {
-      if ($v -match '^\d+\.\d+\.\d+$') {
+      if ($v -match '^\d+\.\d+\.\d+(-[\w.]+)?$') {
         $targetVersion = $v
       }
       else {
-        Write-Warning -Message "You have specified an invalid spicetify version: $v `nThe version must be in the following format: 1.2.3"
+        Write-Warning -Message "You have specified an invalid spicetify version: $v `nThe version must be in the following format: 1.2.3 or 1.2.3-suffix.1"
         Pause
         exit
       }
     }
     else {
       Write-Host -Object 'Fetching the latest spicetify version...' -NoNewline
-      $latestRelease = Invoke-RestMethod -Uri 'https://api.github.com/repos/spicetify/cli/releases/latest'
-      $targetVersion = $latestRelease.tag_name -replace 'v', ''
+      $latestRelease = Invoke-RestMethod -Uri 'https://api.github.com/repos/RianMorningstar/cli/releases/latest'
+      $targetVersion = $latestRelease.tag_name -replace '^v', ''
       Write-Success
     }
     $archivePath = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "spicetify.zip")
@@ -94,12 +94,49 @@ function Get-Spicetify {
   process {
     Write-Host -Object "Downloading spicetify v$targetVersion..." -NoNewline
     $Parameters = @{
-      Uri            = "https://github.com/spicetify/cli/releases/download/v$targetVersion/spicetify-$targetVersion-windows-$architecture.zip"
-      UseBasicParsin = $true
-      OutFile        = $archivePath
+      Uri             = "https://github.com/RianMorningstar/cli/releases/download/v$targetVersion/spicetify-$targetVersion-windows-$architecture.zip"
+      UseBasicParsing = $true
+      OutFile         = $archivePath
     }
     Invoke-WebRequest @Parameters
     Write-Success
+    Write-Host -Object 'Verifying the archive checksum...' -NoNewline
+    $checksumsPath = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), 'spicetify-SHA256SUMS')
+    try {
+      $Parameters = @{
+        Uri             = "https://github.com/RianMorningstar/cli/releases/download/v$targetVersion/SHA256SUMS"
+        UseBasicParsing = $true
+        OutFile         = $checksumsPath
+      }
+      Invoke-WebRequest @Parameters
+      $checksums = Get-Content -Path $checksumsPath -Raw
+    }
+    catch {
+      $checksums = $null
+    }
+    finally {
+      Remove-Item -Path $checksumsPath -Force -ErrorAction 'SilentlyContinue'
+    }
+    $expected = $null
+    if ($checksums) {
+      $line = $checksums -split "`n" | Where-Object { $_ -match "spicetify-$targetVersion-windows-$architecture\.zip" } | Select-Object -First 1
+      if ($line) {
+        $expected = ($line -split '\s+')[0].ToLower()
+      }
+    }
+    if ($expected) {
+      $actual = (Get-FileHash -Path $archivePath -Algorithm SHA256).Hash.ToLower()
+      if ($actual -ne $expected) {
+        Write-Unsuccess
+        Write-Warning -Message 'The downloaded archive does not match the published checksum'
+        Pause
+        exit
+      }
+      Write-Success
+    }
+    else {
+      Write-Host -Object ' > SKIPPED (no SHA256SUMS published for this release)' -ForegroundColor 'Yellow'
+    }
   }
   end {
     $archivePath

@@ -52,7 +52,7 @@ command -v tar >/dev/null || { log "tar isn't installed!" >&2; exit 1; }
 command -v grep >/dev/null || { log "grep isn't installed!" >&2; exit 1; }
 
 # download uri
-releases_uri=https://github.com/spicetify/cli/releases
+releases_uri=https://github.com/RianMorningstar/cli/releases
 if [ -z "$tag" ]; then
     tag=$(curl -LsH 'Accept: application/json' $releases_uri/latest)
     tag=${tag%\,\"update_url*}
@@ -76,6 +76,18 @@ tar="$spicetify_install/spicetify.tar.gz"
 
 log "DOWNLOADING $download_uri"
 curl --fail --location --progress-bar --output "$tar" "$download_uri"
+
+sums_uri=$releases_uri/download/v$tag/SHA256SUMS
+if command -v sha256sum >/dev/null && sums=$(curl --fail --location --silent "$sums_uri"); then
+    log "VERIFYING CHECKSUM"
+    expected=$(printf '%s\n' "$sums" | grep "spicetify-$tag-$target.tar.gz" | cut -d' ' -f1)
+    actual=$(sha256sum "$tar" | cut -d' ' -f1)
+    if [ -n "$expected" ] && [ "$expected" != "$actual" ]; then
+        log "CHECKSUM MISMATCH, ABORTING" >&2
+        rm "$tar"
+        exit 1
+    fi
+fi
 
 log "EXTRACTING $tar"
 tar xzf "$tar" -C "$spicetify_install"
