@@ -50,7 +50,7 @@ func applyPatches(input string, patches []Patch) string {
 }
 
 func readRemoteCssMap(tag string, cssTranslationMap *map[string]string) error {
-	var cssMapURL string = "https://raw.githubusercontent.com/spicetify/cli/" + tag + "/css-map.json"
+	var cssMapURL string = "https://raw.githubusercontent.com/RianMorningstar/cli/" + tag + "/css-map.json"
 	cssMapResp, err := http.Get(cssMapURL)
 	if err != nil {
 		return err
@@ -1101,6 +1101,7 @@ func splitVersion(version string) ([3]int, error) {
 	if vstring[0:1] == "v" {
 		vstring = version[1:]
 	}
+	vstring = strings.SplitN(vstring, "-", 2)[0]
 	vSplit := strings.Split(vstring, ".")
 	var vInts [3]int
 	if len(vSplit) != 3 {
@@ -1141,7 +1142,7 @@ func FetchLatestTagMatchingVersion(version string) (string, error) {
 	if version == "Dev" {
 		return "Dev", nil
 	}
-	res, err := http.Get("https://api.github.com/repos/spicetify/cli/releases")
+	res, err := http.Get("https://api.github.com/repos/RianMorningstar/cli/releases")
 	if err != nil {
 		return "", err
 	}
@@ -1156,7 +1157,7 @@ func FetchLatestTagMatchingVersion(version string) (string, error) {
 	if err = json.Unmarshal(body, &releases); err != nil {
 		return "", err
 	}
-	curVer := strings.Split(version, ".")
+	curVer := strings.Split(strings.SplitN(version, "-", 2)[0], ".")
 	curVerMin, err2 := strconv.Atoi(curVer[2])
 	if err2 != nil {
 		return "", err2
